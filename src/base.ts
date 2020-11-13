@@ -1,85 +1,87 @@
+// utility 
+type RequireAtLeastOne<T, Keys extends keyof T = keyof T> =
+    Pick<T, Exclude<keyof T, Keys>>
+    & {
+        [K in Keys]-?:
+            Required<Pick<T, K>>
+            & Partial<Record<Exclude<Keys, K>, undefined>>
+    }[Keys]
 
-// Base Types
-export type IO = {
+type Impossible<K extends keyof any> = {
+  [P in K]: never;
+};
+
+type NoExtraProperties<T, U extends T = T> = U & Impossible<Exclude<keyof U, keyof T>>;
+
+// Base interfaces
+export interface IO {
   InputPath?: string
   OutputPath?: string
 }
 
-
 export type JsonValue = number | string | boolean | JsonValue[] | {
   [key: string]: JsonValue
+}
+
+export interface End {
+  End: true
+}
+
+export interface Expirable {
+  Seconds?: number
+  SecondsPath?: number
+  Timestamp?: string
+  TimestampPath?: string
+}
+
+export interface TimeoutSeconds {
+  TimeoutSeconds?: number
+  TimeoutSecondsPath?: string
+}
+
+export interface HeartbeatSeconds {
+  HeartbeatSeconds?: number
+  HeartbeatSecondsPath?: string
+}
+
+
+export interface ResultPath {
+  ResultPath?: string
+}
+
+export interface Parameters {
+  Parameters?: object
+}
+
+export interface ResultSelector {
+  ResultSelector?: object
+}
+
+export interface RetryCatch<T> {
+  Retry?: Retry[]
+  Catch?: Catch<T>[]
 }
 
 export type Next<T> = {
   Next: keyof T
 }
 
-export type End = {
-  End: boolean
+export interface Step<T> {
+  Next?: keyof T
+  End?: boolean
 }
 
-export type Seconds = {
-  Seconds: number
-}
-
-export type SecondsPath = {
-  SecondsPath: number
-}
-
-export type Timestamp = {
-  Timestamp: string
-}
-
-export type TimestampPath = {
-  TimestampPath: string
-}
-
-export type Expirable = Seconds | Timestamp | TimestampPath | SecondsPath
-
-export type TimeoutSeconds = {
-  TimeoutSeconds: number
-} | {
-  TimeoutSecondsPath: string
-} | {}
-
-export type HeartbeatSeconds = {
-  HeartbeatSeconds: number
-} | {
-  HeartbeatSecondsPath: string
-} | {}
-
-
-export type ResultPath = {
-  ResultPath?: string
-}
-
-export type Parameters = {
-  Parameters?: object
-}
-
-export type ResultSelector = {
-  ResultSelector?: object
-}
-
-export type RetryCatch<T> = {
-  Retry?: Retry[]
-  Catch?: Catch<T>[]
-}
-
-export type Step<T> = Next<T> | End
-
-export type Comment = {
+export interface Comment {
   Comment?: string,
 }
 
 // Exception handling
-
-export type Catch<T> = Next<T> & {
+export interface Catch<T> extends Next<T> {
   ErrorEquals: string[],
   ResultPath: string,
 }
 
-export type Retry = {
+export interface Retry {
   ErrorEquals: string[],
   IntervalSeconds?: number,
   BackoffRate?: number,
@@ -88,9 +90,9 @@ export type Retry = {
 
 // Expressions
 
-export type Or = { Or: Operator[] }
-export type And = { And: Operator[]}
-export type Not = { Not: Operator }
+export interface Or { Or: Operator[] }
+export interface And { And: Operator[]}
+export interface Not { Not: Operator }
 
 export type LogicalExpression = Or | And | Not | Operator
 export type Choice<T> = Next<T> & LogicalExpression 
@@ -185,65 +187,64 @@ export type Operator =
 // Branches
 
 // StateMachine
-export type StartAt<T> = {
-  StartAt: keyof T,
+export interface StartAt<T> {
+  StartAt: keyof T
 }
 
-export type States<T> = {
-  States: {
-    [key: string]: State<T>
-  }
+export interface States<T> {
+  [key: string]: State<T>
 }
 
-export type StateMachine<T> = StartAt<T> & States<T>
+export interface StateMachine<T> extends StartAt<T> {
+  States: States<T> 
+}
 
-// State Types
-export type FullBaseClass<T> = Comment & IO & Step<T> & ResultPath & Parameters & ResultSelector & RetryCatch<T>
+// State interfaces
+// Step<T>
+export interface FullBaseClass<T> extends Comment, IO, Step<T>, ResultPath, Parameters, ResultSelector, RetryCatch<T> {}
 
-export type TaskState<T> = {
+export interface TaskState<T> extends FullBaseClass<T>, HeartbeatSeconds, TimeoutSeconds {
   Type: "Task"
-} & {
   Resource: string,
-} & FullBaseClass<T> & HeartbeatSeconds & TimeoutSeconds
+}
 
-export type ParallelState<T> =  {
+export interface ParallelState<T> extends FullBaseClass<T> {
   Type: "Parallel"
-} & {
   Branches: StateMachine<any>[]
-} & FullBaseClass<T>
+}
 
-export type MapState<T> = FullBaseClass<T> & {
+export interface MapState<T> extends FullBaseClass<T> {
   Type: "Map"
 }
 
-export type PassState<T> = Comment & IO & Step<T> & ResultPath & Parameters & {
+export interface PassState<T> extends Comment, IO, Step<T>, ResultPath, Parameters {
   Type: "Pass",
-  Result?: JsonValue,
+  Result?: {
+    [key: string]: JsonValue
+  },
 }
 
-export type WaitState<T> = Comment & IO & Step<T> & Expirable & {
+export interface WaitState<T> extends Comment, IO, Step<T>, Expirable {
   Type: "Wait",
 }
 
-export type ChoiceState<T> = Comment & IO & {
+export interface ChoiceState<T> extends Comment, IO {
   Type: "Choice",
   Default?: keyof T,
   Choices: Choice<T>[]
 }
 
-export type SucceedState = Comment & IO & {
+export interface SucceedState extends Comment, IO {
   Type: "Succeed"
 }
 
-export type FailState = Comment & {
+export interface FailState extends Comment {
   Type: "Fail",
   Error: string,
   Cause: string,
 }
 
-
 export type State<T> =
-  | TaskState<T>
   | FailState
   | SucceedState
   | ChoiceState<T>
@@ -251,3 +252,4 @@ export type State<T> =
   | PassState<T>
   | MapState<T>
   | ParallelState<T>
+  | TaskState<T>

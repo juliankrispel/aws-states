@@ -1,24 +1,70 @@
-import { StateMachine, StartAt, States, State } from './base'
+import { StateMachine, StartAt, States, State, PassState } from './base'
 
-
-
-function create<T extends { [key: string]: State<T>}>(StartAt: keyof T, States: T): StateMachine<T> {
-  return {
-    StartAt,
-    States
+function create<T>(
+  st: {
+    StartAt: keyof T,
+    States: States<T>
   }
+): StateMachine<T> {
+  return st 
 }
 
+create({
+  StartAt: 'one',
+  States: {
+    one: {
+      Type: 'Task',
+      Resource: 'hello',
+      End: true
+    },
+    two: {
+      Type: 'Pass',
+      Resource: 'dwq',
+      End: true
+    }
+  }
+})
 
+// function create<T>(StartAt: keyof T, States: States<T>): StateMachine<T> {
+//   return {
+//     StartAt,
+//     States
+//   }
+// }
+// 
 // create(
 //   'one',
 //   {
 //     one: {
 //       Type: 'Task',
+//       Resource: 'something',
+//       End: true
+//     },
+//     two: {
+//       Type: 'Pass',
+//       Red: 'dwq',
 //       End: true
 //     }
 //   }
 // )
+
+const state: States<any> = {
+  one: {
+    Type: 'Task',
+    Resource: 'something',
+    Next: 'two'
+  },
+  two: {
+    Type: 'Pass',
+    Red: 'dwq',
+    End: true
+  },
+}
+
+
+// const some = <T>(t: T): Pick<T, "states"> => {
+// 
+// }
 
 
 // class Machine<T> {
@@ -36,29 +82,12 @@ function create<T extends { [key: string]: State<T>}>(StartAt: keyof T, States: 
 //   }
 // }
 
-interface C {
-  c: string
-}
-
-interface E {
-  e: string
+interface A {
+  a: 1
 }
 
 
-interface D {
-  d: string
-}
-
-interface A extends C, E {
-  key: 'a'
-}
-
-interface B extends D {
-  key: 'b'
-}
-
-type U = A | B
-
-const u: U = {
-  key: 'a'
+const hel: A = {
+  a: 1,
+  b: 2
 }
