@@ -1,0 +1,19 @@
+{
+  "name": "states-language",
+  "version": "0.0.1",
+  "description": "AWS States language https://states-language.net/",
+  "main": "dist/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "aws",
+    "step-functions",
+    "typescript"
+  ],
+  "author": "Julian Krispel-Samsel",
+  "license": "MIT",
+  "devDependencies": {
+    "asl-types": "^1.2.1"
+  }
+}
