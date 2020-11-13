@@ -1,9 +1,9 @@
 import { StateMachine, StartAt, States, State, PassState } from './base'
 
-function create<T>(
+function create<T extends States<T>>(
   st: {
     StartAt: keyof T,
-    States: States<T>
+    States: T
   }
 ): StateMachine<T> {
   return st 
@@ -15,12 +15,14 @@ create({
     one: {
       Type: 'Task',
       Resource: 'hello',
-      End: true
+      Next: 'two'
     },
     two: {
       Type: 'Pass',
-      Resource: 'dwq',
-      End: true
+      Next: 'three'
+    },
+    three: {
+      Type: 'Succeed'
     }
   }
 })
@@ -33,7 +35,7 @@ create({
 // }
 // 
 // create(
-//   'one',
+//   'oe',
 //   {
 //     one: {
 //       Type: 'Task',
@@ -42,7 +44,6 @@ create({
 //     },
 //     two: {
 //       Type: 'Pass',
-//       Red: 'dwq',
 //       End: true
 //     }
 //   }

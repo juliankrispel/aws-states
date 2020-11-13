@@ -67,7 +67,7 @@ export type Next<T> = {
 }
 
 export interface Step<T> {
-  Next?: keyof T
+  Next: keyof T
   End?: boolean
 }
 
@@ -210,7 +210,7 @@ export interface TaskState<T> extends FullBaseClass<T>, HeartbeatSeconds, Timeou
 
 export interface ParallelState<T> extends FullBaseClass<T> {
   Type: "Parallel"
-  Branches: StateMachine<any>[]
+  Branches: StateMachine<T>[]
 }
 
 export interface MapState<T> extends FullBaseClass<T> {
