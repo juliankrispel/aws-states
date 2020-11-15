@@ -18,6 +18,7 @@ const wait = (seconds: number = 1) => {
 
 export default class States<T extends t.States<T>> {
   stateMachine: t.StateMachine<T>
+  end: boolean = false
   at: keyof T
   resources?: Resources<T>
 
@@ -40,9 +41,15 @@ export default class States<T extends t.States<T>> {
     this.resources = res
   }
 
-  async startExecution(input: t.JsonValue) {
+  async startExecution(_input: t.JsonValue) {
     this.at = this.stateMachine.StartAt
-    return await this.step(input)
+    let input = _input
+
+    while(!this.end) {
+      input = await this.step(input)
+    }
+
+    return input
   }
 
   isPath(path: string) {
@@ -74,15 +81,31 @@ export default class States<T extends t.States<T>> {
     )
   }
 
-  parameters<P extends t.JsonValue>(
-    params: { [key: string]: t.JsonValue},
-    input: P
+  value(input: t.JsonValue, val: t.JsonValue) {
+    if (Array.isArray(val)) {
+      return val
+    } else if (typeof val === 'object') {
+      return this.parameters(val, input)
+    } else if (typeof val === 'number' || typeof val === 'boolean') {
+      return val
+    } else if (this.isPath(val)) {
+      return this.path(input, val)
+    } else if (this.isFunction(val)) {
+      return this.callFunction(input, val)
+    } else {
+      return val
+    }
+  }
+
+  parameters(
+    params: t.JsonObject,
+    input: t.JsonValue
   ): t.JsonObject {
     return Object.keys(params).reduce((acc, key) => {
       const val = params[key]
-            return {
+      return {
         ...acc,
-        //[key]: input[]
+        [key]: this.value(input, val)
       }
     }, {})
   }
@@ -108,7 +131,6 @@ export default class States<T extends t.States<T>> {
       }
     })
 
-    console.log(func, _args)
     // @ts-ignore
     return this[func](..._args)
   }
@@ -167,8 +189,8 @@ export default class States<T extends t.States<T>> {
   async step(_input: t.JsonValue) {
     const states = this.stateMachine.States
     const state = states[this.at as string]
-    let res: any = _input
     const input = this.input(state, _input)
+    let res: any = input
 
     if (state.Type === 'Task' && this.resources && this.resources[this.at]) {
       res = {
@@ -190,9 +212,10 @@ export default class States<T extends t.States<T>> {
     if (state.Next != null) {
       this.at = state.Next
       this.step(res)
-    } else if(state.End) {
+      return res
+    } else {
+      this.end = true
       return res
     }
-    return res
   }
 }

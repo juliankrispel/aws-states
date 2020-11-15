@@ -1,7 +1,7 @@
 import S from '../'
 
 describe('States', () => {
-  const s = new S({
+  let s = new S({
     StartAt: 'one',
     States: {
       one: {
@@ -39,9 +39,6 @@ describe('States', () => {
       ${'$.a[0].b'}               | ${{a: [{ b: 1 }]}}                    | ${1}
       ${'$.a[0:1]'}               | ${{a: [1,2,3]}}                       | ${[1, 2]}
     `(`path("$path", $input) matches $expected`, ({ path, input, expected }) => {
-      // console.log({
-      //   path, input, expected
-      // })
       if (expected.constructor === Error) {
         expect(() => { s.path(input, path)})
           .toThrowError(expected.message)
@@ -78,6 +75,32 @@ describe('States', () => {
       } else  {
         expect(S.prototype.callFunction(input, args)).toEqual(expected)
       }
+    })
+  })
+
+  describe('startExecution', () => {
+    it('should work', async () => {
+      const s1 = new S({
+        StartAt: 'one',
+        States: {
+          one: {
+            Type: 'Pass',
+            Parameters: {
+              msg: "States.Format('Hello {}', $.name)"
+            },
+            Next: 'two'
+          },
+          two: {
+            Type: 'Pass',
+            End: true
+          }
+        }
+      })
+      const result = await s1.startExecution({
+        name: 'John'
+      })
+
+      expect(result).toEqual({ msg: 'Hello John'})
     })
   })
 })
