@@ -5,10 +5,12 @@
     "strict": true,
     "esModuleInterop": true,
     "outDir": "dist",
+    "rootDir": "src",
     "skipLibCheck": true,
     "plugins": [
       { "transform": "typescript-is/lib/transform-inline/transformer" }
     ],
     "forceConsistentCasingInFileNames": true
-  }
+  },
+  "include": ["src"]
 }
