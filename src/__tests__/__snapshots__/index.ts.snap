@@ -1,0 +1,20 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`States instantiates a valid state machine 1`] = `
+States {
+  "at": "one",
+  "resources": Object {
+    "one": [Function],
+  },
+  "stateMachine": Object {
+    "StartAt": "one",
+    "States": Object {
+      "one": Object {
+        "End": true,
+        "Resource": "MyResource",
+        "Type": "Task",
+      },
+    },
+  },
+}
+`;

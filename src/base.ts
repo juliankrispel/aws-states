@@ -11,15 +11,15 @@ type Impossible<K extends keyof any> = {
   [P in K]: never;
 };
 
-type NoExtraProperties<T, U extends T = T> = U & Impossible<Exclude<keyof U, keyof T>>;
-
 // Base interfaces
 export interface IO {
   InputPath?: string
   OutputPath?: string
 }
 
-export type JsonValue = number | string | boolean | JsonValue[] | {
+export type JsonValue = number | string | boolean | JsonValue[] | JsonObject
+
+export type JsonObject = {
   [key: string]: JsonValue
 }
 
@@ -50,7 +50,7 @@ export interface ResultPath {
 }
 
 export interface Parameters {
-  Parameters?: object
+  Parameters?: JsonValue
 }
 
 export interface ResultSelector {
@@ -66,8 +66,8 @@ export type Next<T> = {
   Next: keyof T
 }
 
-export interface Step<T> {
-  Next: keyof T
+export type Step<T> = {
+  Next?: keyof T
   End?: boolean
 }
 
@@ -201,7 +201,7 @@ export interface StateMachine<T> extends StartAt<T> {
 
 // State interfaces
 // Step<T>
-export interface FullBaseClass<T> extends Comment, IO, Step<T>, ResultPath, Parameters, ResultSelector, RetryCatch<T> {}
+export interface FullBaseClass<T> extends Comment, Step<T>, IO, ResultPath, Parameters, ResultSelector, RetryCatch<T> {}
 
 export interface TaskState<T> extends FullBaseClass<T>, HeartbeatSeconds, TimeoutSeconds {
   Type: "Task"
@@ -210,21 +210,22 @@ export interface TaskState<T> extends FullBaseClass<T>, HeartbeatSeconds, Timeou
 
 export interface ParallelState<T> extends FullBaseClass<T> {
   Type: "Parallel"
-  Branches: StateMachine<T>[]
+  Branches: StateMachine<unknown>[]
 }
 
 export interface MapState<T> extends FullBaseClass<T> {
-  Type: "Map"
+  Type: "Map",
+  ItemsPath?: string,
 }
 
-export interface PassState<T> extends Comment, IO, Step<T>, ResultPath, Parameters {
+export interface PassState<T> extends Comment, Step<T>, IO, ResultPath, Parameters {
   Type: "Pass",
   Result?: {
     [key: string]: JsonValue
   },
 }
 
-export interface WaitState<T> extends Comment, IO, Step<T>, Expirable {
+export interface WaitState<T> extends Comment, Step<T>, IO, Expirable {
   Type: "Wait",
 }
 
@@ -248,8 +249,8 @@ export type State<T> =
   | FailState
   | SucceedState
   | ChoiceState<T>
-  | WaitState<T>
-  | PassState<T>
-  | MapState<T>
-  | ParallelState<T>
-  | TaskState<T>
+  | RequireAtLeastOne<WaitState<T>, "End" | "Next">
+  | RequireAtLeastOne<PassState<T>, "End" | "Next">
+  | RequireAtLeastOne<MapState<T>, "End" | "Next">
+  | RequireAtLeastOne<ParallelState<T>, "End" | "Next">
+  | RequireAtLeastOne<TaskState<T>, "End" | "Next">

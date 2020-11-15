@@ -1,10 +1,12 @@
 {
-  "name": "states-language",
+  "name": "aws-states",
   "version": "0.0.1",
   "description": "AWS States language https://states-language.net/",
   "main": "dist/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest",
+    "build": "tsc",
+    "test:watch": "jest --watch"
   },
   "keywords": [
     "aws",
@@ -14,6 +16,16 @@
   "author": "Julian Krispel-Samsel",
   "license": "MIT",
   "devDependencies": {
-    "asl-types": "^1.2.1"
+    "asl-types": "^1.2.1",
+    "jest": "^26.6.3",
+    "jest-ts-auto-mock": "^1.0.11",
+    "ts-auto-mock": "^2.6.5",
+    "ts-jest": "^26.4.4",
+    "ttypescript": "^1.5.12",
+    "typescript": "^4.0.5",
+    "typescript-is": "^0.16.3"
+  },
+  "dependencies": {
+    "@types/jest": "^26.0.15"
   }
 }

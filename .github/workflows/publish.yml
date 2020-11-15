@@ -1,0 +1,34 @@
+on: 
+  release:
+    types: [published]
+
+name: Publish npm package
+jobs:
+  publish_package:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Get npm cache directory
+        id: npm-cache
+        run: |
+          echo "::set-output name=dir::$(npm config get cache)"
+
+      - uses: actions/cache@v2
+        with:
+          path: ${{ steps.npm-cache.outputs.dir }}
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - run: |
+          npm install
+          npm run build
+
+      - uses: JS-DevTools/npm-publish@v1
+        with:
+          check-version: true
+          token: ${{ secrets.NPM_TOKEN }}
+
