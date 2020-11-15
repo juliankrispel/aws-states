@@ -74,7 +74,7 @@ export default class States<T extends t.States<T>> {
     )
   }
 
-  parameters<P extends t.JsonObject>(
+  parameters<P extends t.JsonValue>(
     params: { [key: string]: t.JsonValue},
     input: P
   ): t.JsonObject {
@@ -155,18 +155,20 @@ export default class States<T extends t.States<T>> {
       || state.Type === 'Parallel'
       || state.Type === 'Pass')
       && state.Parameters) {
-        state.Parameters
+        input = this.parameters(state.Parameters, input)
     }
+    return input
   }
 
   async output(state: t.State<T>, input: t.JsonValue) {
 
   }
 
-  async step(input: t.JsonValue) {
+  async step(_input: t.JsonValue) {
     const states = this.stateMachine.States
     const state = states[this.at as string]
-    let res: any = input
+    let res: any = _input
+    const input = this.input(state, _input)
 
     if (state.Type === 'Task' && this.resources && this.resources[this.at]) {
       res = {
@@ -191,5 +193,6 @@ export default class States<T extends t.States<T>> {
     } else if(state.End) {
       return res
     }
+    return res
   }
 }

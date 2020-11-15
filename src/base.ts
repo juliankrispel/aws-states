@@ -50,7 +50,7 @@ export interface ResultPath {
 }
 
 export interface Parameters {
-  Parameters?: JsonValue
+  Parameters?: JsonObject
 }
 
 export interface ResultSelector {
@@ -254,3 +254,23 @@ export type State<T> =
   | RequireAtLeastOne<MapState<T>, "End" | "Next">
   | RequireAtLeastOne<ParallelState<T>, "End" | "Next">
   | RequireAtLeastOne<TaskState<T>, "End" | "Next">
+
+
+export type StepFunctionContext = {
+  Execution: {
+    Id: string
+    Input: JsonValue
+    StartTime: string
+  };
+  State: {
+    EnteredTime: string
+    Name: string
+    RetryCount: number
+  };
+  StateMachine: {
+    Id: string
+  };
+  Task: {
+    Token: string
+  };
+};
