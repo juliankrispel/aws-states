@@ -131,12 +131,12 @@ export type TimestampLessThanEquals = { Variable: string, TimestampLessThanEqual
 export type TimestampLessThanEqualsPath = { Variable: string, TimestampLessThanEqualsPath: string }
 export type TimestampGreaterThanEquals = { Variable: string, TimestampGreaterThanEquals: string }
 export type TimestampGreaterThanEqualsPath = { Variable: string, TimestampGreaterThanEqualsPath: string }
-export type IsNull = { IsNull: string }
-export type IsPresent = { IsPresent: string }
-export type IsNumeric = { IsNumeric: string }
-export type IsString = { IsString: string }
-export type IsBoolean = { IsBoolean: string }
-export type IsTimestamp = { IsTimestamp: string }
+export type IsNull = { Variable: string, IsNull: boolean }
+export type IsPresent = { Variable: string, IsPresent: boolean }
+export type IsNumeric = { Variable: string, IsNumeric: boolean }
+export type IsString = { Variable: string, IsString: boolean }
+export type IsBoolean = { Variable: string, IsBoolean: boolean }
+export type IsTimestamp = { Variable: string, IsTimestamp: boolean }
 export type LogicalOperator = 
   | StringEquals
   | StringEqualsPath

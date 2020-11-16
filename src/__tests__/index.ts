@@ -85,22 +85,48 @@ describe('States', () => {
 
   fdescribe('evaluateLogicalOperator', () => {
     test.each`
-      args                                                         |  input                            | expected
-      ${{ StringEquals: 'a', Variable: '$.a'}}                     |  ${{ a: 'a' }}                    | ${true}
-      ${{ StringEquals: 'a', Variable: '$.a'}}                     |  ${{ a: 'b' }}                    | ${false}
-      ${{ StringEquals: '$.a', Variable: '$.a'}}                   |  ${{ a: '$.a' }}                  | ${true}
-      ${{ StringEqualsPath: '$.a', Variable: '$.a'}}               |  ${{ a: 'b' }}                    | ${true}
-      ${{ StringEqualsPath: '$.b', Variable: '$.a'}}               |  ${{ a: 'b', b: 'b' }}            | ${true}
-      ${{ StringEqualsPath: '$.b', Variable: '$.a'}}               |  ${{ a: 'b', b: 'c' }}            | ${false}
-      ${{ StringEqualsPath: 'b', Variable: '$.a'}}                 |  ${{ a: 'b', b: 'c' }}            | ${Error('Invalid Path: b')}
-      ${{ StringGreaterThan: 'b', Variable: '$.a'}}                |  ${{ a: 'c' }}                    | ${true}
-      ${{ StringGreaterThan: 'c', Variable: '$.a'}}                |  ${{ a: 'c' }}                    | ${false}
-      ${{ StringGreaterThanPath: 'c', Variable: '$.a'}}            |  ${{ a: 'c' }}                    | ${Error('Invalid Path: c')}
-      ${{ StringGreaterThanPath: '$.b', Variable: '$.a'}}          |  ${{ a: 'c', b: 'd' }}            | ${true}
-      ${{ StringGreaterThanPath: '$.b', Variable: '$.a'}}          |  ${{ a: 'c', b: 'e' }}            | ${true}
-      ${{ StringGreaterThanPath: '$.b', Variable: '$.a'}}          |  ${{ a: 'c', b: 'cd' }}           | ${true}
-      ${{ StringGreaterThanEquals: '$.b', Variable: '$.a'}}        |  ${{ a: 'c', b: 'c' }}            | ${true}
-      ${{ StringGreaterThanEquals: '$.b', Variable: '$.a'}}        |  ${{ a: 'cb', b: 'ca' }}          | ${false}
+      args                                                                       |  input                                  | expected
+      ${{ StringEquals: 'a', Variable: '$.a'}}                                   |  ${{ a: 'a' }}                          | ${true}
+      ${{ StringEquals: 'a', Variable: '$.a'}}                                   |  ${{ a: 'b' }}                          | ${false}
+      ${{ StringEquals: '$.a', Variable: '$.a'}}                                 |  ${{ a: '$.a' }}                        | ${true}
+      ${{ StringEqualsPath: '$.a', Variable: '$.a'}}                             |  ${{ a: 'b' }}                          | ${true}
+      ${{ StringEqualsPath: '$.b', Variable: '$.a'}}                             |  ${{ a: 'b', b: 'b' }}                  | ${true}
+      ${{ StringEqualsPath: '$.b', Variable: '$.a'}}                             |  ${{ a: 'b', b: 'c' }}                  | ${false}
+      ${{ StringEqualsPath: 'b', Variable: '$.a'}}                               |  ${{ a: 'b', b: 'c' }}                  | ${Error('Invalid Path: b')}
+      ${{ StringGreaterThan: 'b', Variable: '$.a'}}                              |  ${{ a: 'c' }}                          | ${true}
+      ${{ StringGreaterThan: 'c', Variable: '$.a'}}                              |  ${{ a: 'c' }}                          | ${false}
+      ${{ StringGreaterThanPath: 'c', Variable: '$.a'}}                          |  ${{ a: 'c' }}                          | ${Error('Invalid Path: c')}
+      ${{ StringGreaterThanPath: '$.b', Variable: '$.a'}}                        |  ${{ a: 'c', b: 'd' }}                  | ${false}
+      ${{ StringGreaterThanPath: '$.a', Variable: '$.b'}}                        |  ${{ a: 'c', b: 'e' }}                  | ${true}
+      ${{ StringGreaterThanPath: '$.b', Variable: '$.a'}}                        |  ${{ a: 'cd', b: 'c' }}                 | ${true}
+      ${{ StringGreaterThanEquals: 'c', Variable: '$.a'}}                        |  ${{ a: 'c', b: 'c' }}                  | ${true}
+      ${{ StringMatches: 'what*up', Variable: '$.a'}}                            |  ${{ a: 'what is going on up' }}        | ${true}
+      ${{ StringMatches: '*.zip', Variable: '$.a'}}                              |  ${{ a: 'frofro.zip' }}                 | ${true}
+      ${{ StringMatches: '*.zip', Variable: '$.a'}}                              |  ${{ a: 'frofro.js' }}                  | ${false}
+      ${{ IsNull: true, Variable: '$.a'}}                                        |  ${{ a: null }}                         | ${true}
+      ${{ IsNull: true, Variable: '$.a'}}                                        |  ${{}}                                  | ${Error('Invalid Path: $.a')}
+      ${{ IsNull: false, Variable: '$.a'}}                                       |  ${{}}                                  | ${Error('Invalid Path: $.a')}
+      ${{ IsNull: false, Variable: '$.a'}}                                       |  ${{ a: 'bloom'}}                       | ${true}
+      ${{ IsPresent: false, Variable: '$.a'}}                                    |  ${{ }}                                 | ${true}
+      ${{ IsPresent: true, Variable: '$.a'}}                                     |  ${{ }}                                 | ${false}
+      ${{ IsPresent: true, Variable: '$.a'}}                                     |  ${{ a: 'dwq' }}                        | ${true}
+      ${{ IsPresent: false, Variable: '$.a'}}                                    |  ${{ a: 'dwq' }}                        | ${false}
+      ${{ IsString: true, Variable: '$.a'}}                                      |  ${{ a: 'dwq' }}                        | ${true}
+      ${{ IsString: false, Variable: '$.a'}}                                     |  ${{ a: 'dwq' }}                        | ${false}
+      ${{ IsNumeric: true, Variable: '$.a'}}                                     |  ${{ a: 'dwq' }}                        | ${false}
+      ${{ IsNumeric: true, Variable: '$.a'}}                                     |  ${{ a: 3 }}                            | ${true}
+      ${{ IsNumeric: false, Variable: '$.a'}}                                    |  ${{ a: 3 }}                            | ${false}
+      ${{ IsNumeric: false, Variable: '$.a'}}                                    |  ${{ a: 'dwq' }}                        | ${true}
+      ${{ IsBoolean: true, Variable: '$.a'}}                                     |  ${{ a: true }}                         | ${true}
+      ${{ IsBoolean: true, Variable: '$.a'}}                                     |  ${{ a: false }}                        | ${true}
+      ${{ IsBoolean: false, Variable: '$.a'}}                                    |  ${{ a: true }}                         | ${false}
+      ${{ IsBoolean: true, Variable: '$.a'}}                                     |  ${{ a: 'dwq' }}                        | ${false}
+      ${{ IsTimestamp: true, Variable: '$.a'}}                                   |  ${{ a: 'dwq' }}                        | ${false}
+      ${{ IsTimestamp: false, Variable: '$.a'}}                                  |  ${{ a: 'dwq' }}                        | ${true}
+      ${{ IsTimestamp: true, Variable: '$.a'}}                                   |  ${{ a: '2020-10-10' }}                 | ${false}
+      ${{ IsTimestamp: false, Variable: '$.a'}}                                  |  ${{ a: '2020-10-10' }}                 | ${true}
+      ${{ IsTimestamp: true, Variable: '$.a'}}                                   |  ${{ a: '2016-04-06T10:10:09Z' }}       | ${true}
+      ${{ TimestampGreaterThan: '2016-04-06T10:10:09Z', Variable: '$.a'}}        |  ${{ a: '2020-04-06T10:10:09Z' }}       | ${true}
     `('$args with $input produces $expected ', ({ args, input, expected }) => {
       if (expected.constructor === Error) {
         expect(() => { S.prototype.evaluateLogicalOperator(args, input)})

@@ -1,6 +1,8 @@
 import * as t from './base'
 import { assertEquals } from 'typescript-is'
 
+const timestampRegex = /^(-?(?:[1-9][0-9]*)?[0-9]{4})-(1[0-2]|0[1-9])-(3[01]|0[1-9]|[12][0-9])T(2[0-3]|[01][0-9]):([0-5][0-9]):([0-5][0-9])(\\.[0-9]+)?(Z)?$/
+
 type Resources<T> = {
   [p in keyof T]: (event: any) => Promise<any>
 }
@@ -73,7 +75,6 @@ export default class States<T extends t.States<T>> {
     .reduce(
       (acc, val: string) => {
         const matches = /(-?[0-9]+)?:(-?[0-9]+)?/.exec(val)
-        console.log(matches)
         if (matches != null && val.length > 1 && Array.isArray(acc)) {
           let start = matches[1] != null ? parseInt(matches[1]) : 0
           let end = matches[2] != null ? parseInt(matches[2]) : undefined
@@ -85,7 +86,7 @@ export default class States<T extends t.States<T>> {
           }
 
           return acc.slice(start, end)
-        } else if (!acc[val] && acc[val] !==  null) {
+        } else if (!(val in acc)) {
           throw new Error(`Invalid Path: ${path}`)
         }
         return acc[val]
@@ -201,41 +202,41 @@ export default class States<T extends t.States<T>> {
     } else if ('StringEqualsPath' in op) {
       return this.path(input, op.StringEqualsPath) == this.path(input, op.Variable)
     } else if ('StringGreaterThan' in op) {
-      return op.StringGreaterThan > this.path(input, op.Variable)
+      return op.StringGreaterThan < this.path(input, op.Variable)
     } else if ('StringGreaterThanPath' in op) {
-      return this.path(input, op.StringGreaterThanPath) > this.path(input, op.Variable)
+      return this.path(input, op.StringGreaterThanPath) < this.path(input, op.Variable)
     } else if ('StringGreaterThanEquals' in op) {
-      return op.StringGreaterThanEquals >= this.path(input, op.Variable)
+      return op.StringGreaterThanEquals <= this.path(input, op.Variable)
     } else if ('StringGreaterThanEqualsPath' in op) {
-      return this.path(input, op.StringGreaterThanEqualsPath) >= this.path(input, op.Variable)
+      return this.path(input, op.StringGreaterThanEqualsPath) <= this.path(input, op.Variable)
     } else if ('StringLessThan' in op) {
-      return op.StringLessThan < this.path(input, op.Variable)
+      return op.StringLessThan > this.path(input, op.Variable)
     } else if ('StringLessThanPath' in op) {
-      return this.path(input, op.StringLessThanPath) < this.path(input, op.Variable)
+      return this.path(input, op.StringLessThanPath) > this.path(input, op.Variable)
     } else if ('StringLessThanEquals' in op) {
-      return op.StringLessThanEquals <= this.path(input, op.Variable)
+      return op.StringLessThanEquals >= this.path(input, op.Variable)
     } else if ('StringLessThanEqualsPath' in op) {
-      return this.path(input, op.StringLessThanEqualsPath) <= this.path(input, op.Variable)
+      return this.path(input, op.StringLessThanEqualsPath) >= this.path(input, op.Variable)
     } else if ('NumericEquals' in op) {
       return op.NumericEquals == this.path(input, op.Variable)
     } else if ('NumericEqualsPath' in op) {
       return this.path(input, op.NumericEqualsPath) == this.path(input, op.Variable)
     } else if ('NumericGreaterThan' in op) {
-      return op.NumericGreaterThan > this.path(input, op.Variable)
+      return op.NumericGreaterThan < this.path(input, op.Variable)
     } else if ('NumericGreaterThanPath' in op) {
-      return this.path(input, op.NumericGreaterThanPath) > this.path(input, op.Variable)
+      return this.path(input, op.NumericGreaterThanPath) < this.path(input, op.Variable)
     } else if ('NumericGreaterThanEquals' in op) {
-      return op.NumericGreaterThanEquals >= this.path(input, op.Variable)
+      return op.NumericGreaterThanEquals <= this.path(input, op.Variable)
     } else if ('NumericGreaterThanEqualsPath' in op) {
-      return this.path(input, op.NumericGreaterThanEqualsPath) >= this.path(input, op.Variable)
+      return this.path(input, op.NumericGreaterThanEqualsPath) <= this.path(input, op.Variable)
     } else if ('NumericLessThan' in op) {
-      return op.NumericLessThan < this.path(input, op.Variable)
+      return op.NumericLessThan > this.path(input, op.Variable)
     } else if ('NumericLessThanPath' in op) {
-      return this.path(input, op.NumericLessThanPath) < this.path(input, op.Variable)
+      return this.path(input, op.NumericLessThanPath) > this.path(input, op.Variable)
     } else if ('NumericLessThanEquals' in op) {
-      return op.NumericLessThanEquals <= this.path(input, op.Variable)
+      return op.NumericLessThanEquals >= this.path(input, op.Variable)
     } else if ('NumericLessThanEqualsPath' in op) {
-      return this.path(input, op.NumericLessThanEqualsPath) <= this.path(input, op.Variable)
+      return this.path(input, op.NumericLessThanEqualsPath) >= this.path(input, op.Variable)
     } else if ('BooleanEquals' in op) {
       return op.BooleanEquals == this.path(input, op.Variable)
     } else if ('BooleanEqualsPath' in op) {
@@ -244,6 +245,44 @@ export default class States<T extends t.States<T>> {
       return op.TimestampEquals == this.path(input, op.Variable)
     } else if ('TimestampEqualsPath' in op) {
       return this.path(input, op.TimestampEqualsPath) == this.path(input, op.Variable)
+    } else if ('TimestampLessThan' in op) {
+      return new Date(op.TimestampLessThan) > new Date(this.path(input, op.Variable))
+    } else if ('TimestampLessThanPath' in op) {
+      return new Date(this.path(input, op.TimestampLessThanPath)) > (this.path(input, op.Variable))
+    } else if ('TimestampGreaterThan' in op) {
+      return new Date(op.TimestampGreaterThan) < new Date(this.path(input, op.Variable))
+    } else if ('TimestampGreaterThanPath' in op) {
+      return new Date(this.path(input, op.TimestampGreaterThanPath)) < (this.path(input, op.Variable))
+    } else if ('TimestampLessThanEquals' in op) {
+      return new Date(op.TimestampLessThanEquals) >= new Date(this.path(input, op.Variable))
+    } else if ('TimestampLessThanEqualsPath' in op) {
+      return new Date(this.path(input, op.TimestampLessThanEqualsPath)) >= (this.path(input, op.Variable))
+    } else if ('TimestampGreaterThanEquals' in op) {
+      return new Date(op.TimestampGreaterThanEquals) <= new Date(this.path(input, op.Variable))
+    } else if ('TimestampGreaterThanEqualsPath' in op) {
+      return new Date(this.path(input, op.TimestampGreaterThanEqualsPath)) <= (this.path(input, op.Variable))
+    } else if ('IsNull' in op) {
+      return op.IsNull === (this.path(input, op.Variable) === null)
+    } else if ('IsPresent' in op) {
+      try {
+        this.path(input, op.Variable) !== undefined
+        return op.IsPresent === true
+      } catch(er) {
+        return op.IsPresent === false
+      }
+    } else if ('IsNumeric' in op) {
+      return op.IsNumeric === (typeof this.path(input, op.Variable) === 'number')
+    } else if ('IsString' in op) {
+      return op.IsString === (typeof this.path(input, op.Variable) === 'string')
+    } else if ('IsBoolean' in op) {
+      return op.IsBoolean === (typeof this.path(input, op.Variable) === 'boolean')
+    } else if ('IsTimestamp' in op) {
+      return op.IsTimestamp === timestampRegex.test(this.path(input, op.Variable))
+    } else if ('StringMatches' in op) {
+      const matcher = new RegExp(op.StringMatches.replace(/(?<!\\)\*/gi, '.+'))
+      return matcher.test(this.path(input, op.Variable))
+    } else {
+      throw new Error(`Method not implemented ${Object.keys(op)}`)
     }
   }
 
