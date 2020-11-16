@@ -90,60 +90,58 @@ export interface Retry {
 
 // Expressions
 
-export interface Or { Or: Operator[] }
-export interface And { And: Operator[]}
-export interface Not { Not: Operator }
+export interface Or { Or: LogicalOperator[] }
+export interface And { And: LogicalOperator[]}
+export interface Not { Not: LogicalOperator }
 
-export type LogicalExpression = Or | And | Not | Operator
+export type LogicalExpression = Or | And | Not | LogicalOperator
 export type Choice<T> = Next<T> & LogicalExpression 
 
 // Comparison operators
-export type Variable = { Variable: string }
-export type StringEquals = { StringEquals: string }
-export type StringEqualsPath = Variable & { StringEqualsPath: string }
-export type StringLessThan = { StringLessThan: string }
-export type StringLessThanPath = Variable & { StringLessThanPath: string }
-export type StringGreaterThan = { StringGreaterThan: string }
-export type StringGreaterThanPath = Variable & { StringGreaterThanPath: string }
-export type StringLessThanEquals = { StringLessThanEquals: string }
-export type StringLessThanEqualsPath = Variable & { StringLessThanEqualsPath: string }
-export type StringGreaterThanEquals = { StringGreaterThanEquals: string }
-export type StringGreaterThanEqualsPath = Variable & { StringGreaterThanEqualsPath: string }
-export type StringMatches = { StringMatches: string }
-export type NumericEquals = { NumericEquals: number }
-export type NumericEqualsPath = Variable & { NumericEqualsPath: number }
-export type NumericLessThan = { NumericLessThan: number }
-export type NumericLessThanPath = Variable & { NumericLessThanPath: number }
-export type NumericGreaterThan = { NumericGreaterThan: number }
-export type NumericGreaterThanPath = Variable & { NumericGreaterThanPath: number }
-export type NumericLessThanEquals = { NumericLessThanEquals: number }
-export type NumericLessThanEqualsPath = Variable & { NumericLessThanEqualsPath: number }
-export type NumericGreaterThanEquals = { NumericGreaterThanEquals: number }
-export type NumericGreaterThanEqualsPath = Variable & { NumericGreaterThanEqualsPath: number }
-export type BooleanEquals = { BooleanEquals: boolean }
-export type BooleanEqualsPath = Variable & { BooleanEqualsPath: boolean }
-export type TimestampEquals = { TimestampEquals: string }
-export type TimestampEqualsPath = Variable & { TimestampEqualsPath: string }
-export type TimestampLessThan = { TimestampLessThan: string }
-export type TimestampLessThanPath = Variable & { TimestampLessThanPath: string }
-export type TimestampGreaterThan = { TimestampGreaterThan: string }
-export type TimestampGreaterThanPath = Variable & { TimestampGreaterThanPath: string }
-export type TimestampLessThanEquals = { TimestampLessThanEquals: string }
-export type TimestampLessThanEqualsPath = Variable & { TimestampLessThanEqualsPath: string }
-export type TimestampGreaterThanEquals = { TimestampGreaterThanEquals: string }
-export type TimestampGreaterThanEqualsPath = Variable & { TimestampGreaterThanEqualsPath: string }
+export type StringEquals = { Variable: string, StringEquals: string }
+export type StringEqualsPath = { Variable: string, StringEqualsPath: string }
+export type StringLessThan = { Variable: string, StringLessThan: string }
+export type StringLessThanPath = { Variable: string, StringLessThanPath: string }
+export type StringGreaterThan = { Variable: string, StringGreaterThan: string }
+export type StringGreaterThanPath = { Variable: string, StringGreaterThanPath: string }
+export type StringLessThanEquals = { Variable: string, StringLessThanEquals: string }
+export type StringLessThanEqualsPath = { Variable: string, StringLessThanEqualsPath: string }
+export type StringGreaterThanEquals = { Variable: string, StringGreaterThanEquals: string }
+export type StringGreaterThanEqualsPath = { Variable: string, StringGreaterThanEqualsPath: string }
+export type StringMatches = { Variable: string, StringMatches: string }
+export type NumericEquals = { Variable: string, NumericEquals: number }
+export type NumericEqualsPath = { Variable: string, NumericEqualsPath: string }
+export type NumericLessThan = { Variable: string, NumericLessThan: number }
+export type NumericLessThanPath = { Variable: string, NumericLessThanPath: string }
+export type NumericGreaterThan = { Variable: string, NumericGreaterThan: number }
+export type NumericGreaterThanPath = { Variable: string, NumericGreaterThanPath: string }
+export type NumericLessThanEquals = { Variable: string, NumericLessThanEquals: number }
+export type NumericLessThanEqualsPath = { Variable: string, NumericLessThanEqualsPath: string }
+export type NumericGreaterThanEquals = { Variable: string, NumericGreaterThanEquals: number }
+export type NumericGreaterThanEqualsPath = { Variable: string, NumericGreaterThanEqualsPath: string }
+export type BooleanEquals = { Variable: string, BooleanEquals: boolean }
+export type BooleanEqualsPath = { Variable: string, BooleanEqualsPath: string }
+export type TimestampEquals = { Variable: string, TimestampEquals: string }
+export type TimestampEqualsPath = { Variable: string, TimestampEqualsPath: string }
+export type TimestampLessThan = { Variable: string, TimestampLessThan: string }
+export type TimestampLessThanPath = { Variable: string, TimestampLessThanPath: string }
+export type TimestampGreaterThan = { Variable: string, TimestampGreaterThan: string }
+export type TimestampGreaterThanPath = { Variable: string, TimestampGreaterThanPath: string }
+export type TimestampLessThanEquals = { Variable: string, TimestampLessThanEquals: string }
+export type TimestampLessThanEqualsPath = { Variable: string, TimestampLessThanEqualsPath: string }
+export type TimestampGreaterThanEquals = { Variable: string, TimestampGreaterThanEquals: string }
+export type TimestampGreaterThanEqualsPath = { Variable: string, TimestampGreaterThanEqualsPath: string }
 export type IsNull = { IsNull: string }
 export type IsPresent = { IsPresent: string }
 export type IsNumeric = { IsNumeric: string }
 export type IsString = { IsString: string }
 export type IsBoolean = { IsBoolean: string }
 export type IsTimestamp = { IsTimestamp: string }
-export type Operator = 
+export type LogicalOperator = 
   | StringEquals
   | StringEqualsPath
   | StringEqualsPath
-  | StringLessThanPath
-  | StringLessThanPath
+  | StringLessThan
   | StringLessThanPath
   | StringGreaterThan
   | StringGreaterThanPath

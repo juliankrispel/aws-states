@@ -72,7 +72,20 @@ export default class States<T extends t.States<T>> {
     }, [] as string[])
     .reduce(
       (acc, val: string) => {
-        if (!acc[val] && acc[val] !==  null) {
+        const matches = /(-?[0-9]+)?:(-?[0-9]+)?/.exec(val)
+        console.log(matches)
+        if (matches != null && val.length > 1 && Array.isArray(acc)) {
+          let start = matches[1] != null ? parseInt(matches[1]) : 0
+          let end = matches[2] != null ? parseInt(matches[2]) : undefined
+          if (start < 0) {
+            start = 0
+          }
+          if (end != null && end < start) {
+            end = start
+          }
+
+          return acc.slice(start, end)
+        } else if (!acc[val] && acc[val] !==  null) {
           throw new Error(`Invalid Path: ${path}`)
         }
         return acc[val]
@@ -182,8 +195,71 @@ export default class States<T extends t.States<T>> {
     return input
   }
 
-  async output(state: t.State<T>, input: t.JsonValue) {
+  evaluateLogicalOperator(op: t.LogicalOperator, input: t.JsonValue): boolean {
+    if ('StringEquals' in op) {
+      return op.StringEquals == this.path(input, op.Variable)
+    } else if ('StringEqualsPath' in op) {
+      return this.path(input, op.StringEqualsPath) == this.path(input, op.Variable)
+    } else if ('StringGreaterThan' in op) {
+      return op.StringGreaterThan > this.path(input, op.Variable)
+    } else if ('StringGreaterThanPath' in op) {
+      return this.path(input, op.StringGreaterThanPath) > this.path(input, op.Variable)
+    } else if ('StringGreaterThanEquals' in op) {
+      return op.StringGreaterThanEquals >= this.path(input, op.Variable)
+    } else if ('StringGreaterThanEqualsPath' in op) {
+      return this.path(input, op.StringGreaterThanEqualsPath) >= this.path(input, op.Variable)
+    } else if ('StringLessThan' in op) {
+      return op.StringLessThan < this.path(input, op.Variable)
+    } else if ('StringLessThanPath' in op) {
+      return this.path(input, op.StringLessThanPath) < this.path(input, op.Variable)
+    } else if ('StringLessThanEquals' in op) {
+      return op.StringLessThanEquals <= this.path(input, op.Variable)
+    } else if ('StringLessThanEqualsPath' in op) {
+      return this.path(input, op.StringLessThanEqualsPath) <= this.path(input, op.Variable)
+    } else if ('NumericEquals' in op) {
+      return op.NumericEquals == this.path(input, op.Variable)
+    } else if ('NumericEqualsPath' in op) {
+      return this.path(input, op.NumericEqualsPath) == this.path(input, op.Variable)
+    } else if ('NumericGreaterThan' in op) {
+      return op.NumericGreaterThan > this.path(input, op.Variable)
+    } else if ('NumericGreaterThanPath' in op) {
+      return this.path(input, op.NumericGreaterThanPath) > this.path(input, op.Variable)
+    } else if ('NumericGreaterThanEquals' in op) {
+      return op.NumericGreaterThanEquals >= this.path(input, op.Variable)
+    } else if ('NumericGreaterThanEqualsPath' in op) {
+      return this.path(input, op.NumericGreaterThanEqualsPath) >= this.path(input, op.Variable)
+    } else if ('NumericLessThan' in op) {
+      return op.NumericLessThan < this.path(input, op.Variable)
+    } else if ('NumericLessThanPath' in op) {
+      return this.path(input, op.NumericLessThanPath) < this.path(input, op.Variable)
+    } else if ('NumericLessThanEquals' in op) {
+      return op.NumericLessThanEquals <= this.path(input, op.Variable)
+    } else if ('NumericLessThanEqualsPath' in op) {
+      return this.path(input, op.NumericLessThanEqualsPath) <= this.path(input, op.Variable)
+    } else if ('BooleanEquals' in op) {
+      return op.BooleanEquals == this.path(input, op.Variable)
+    } else if ('BooleanEqualsPath' in op) {
+      return this.path(input, op.BooleanEqualsPath) == this.path(input, op.Variable)
+    } else if ('TimestampEquals' in op) {
+      return op.TimestampEquals == this.path(input, op.Variable)
+    } else if ('TimestampEqualsPath' in op) {
+      return this.path(input, op.TimestampEqualsPath) == this.path(input, op.Variable)
+    }
+  }
 
+  evaluateExpression(exp: t.LogicalExpression, input: t.JsonValue): boolean {
+    if ('And' in exp) {
+      return exp.And.reduce((res, val) => res && this.evaluateExpression(val, input), true as boolean)
+    } else if ('Or' in exp) {
+      return exp.Or.reduce((res, val) => res || this.evaluateExpression(val, input), false as boolean)
+    } else if ('Not' in exp) {
+      return !this.evaluateExpression(exp.Not, input)
+    } else {
+      return this.evaluateLogicalOperator(exp, input)
+    }
+  }
+
+  async output(state: t.State<T>, input: t.JsonValue) {
   }
 
   async step(_input: t.JsonValue) {
