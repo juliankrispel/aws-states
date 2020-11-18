@@ -83,7 +83,7 @@ describe('States', () => {
     })
   })
 
-  fdescribe('evaluateLogicalOperator', () => {
+  describe('evaluateLogicalOperator', () => {
     test.each`
       args                                                                       |  input                                  | expected
       ${{ StringEquals: 'a', Variable: '$.a'}}                                   |  ${{ a: 'a' }}                          | ${true}
@@ -156,11 +156,110 @@ describe('States', () => {
           }
         }
       })
-      const result = await s1.startExecution({
-        name: 'John'
+      const result = await s1.execute({
+        Id: 'hello',
+        Input: {
+          name: 'John'
+        }
       })
 
       expect(result).toEqual({ msg: 'Hello John'})
+    })
+
+
+    test.each([
+      [new S({
+        "StartAt": "one",
+        "States": {
+          "one": {
+            "Type": "Choice",
+            "Choices": [
+              {
+                "IsTimestamp": true,
+                "Variable": "$.a",
+                "Next": "yes"
+              }
+            ],
+            "Default": "no"
+          },
+          "yes": {
+            "Type": "Pass",
+            "Result": "yes",
+            "End": true
+          },
+          "no": {
+            "Type": "Pass",
+            "Result": "no",
+            "End": true
+          }
+        }
+      }), 
+      {
+        "a": "2016-04-06T10:10:09Z"
+      },
+      "yes"],
+      [new S({
+        "StartAt": "one",
+        "States": {
+          "one": {
+            "Type": "Choice",
+            "Choices": [
+              {
+                "IsTimestamp": false,
+                "Variable": "$.a",
+                "Next": "yes"
+              }
+            ],
+            "Default": "no"
+          },
+          "yes": {
+            "Type": "Pass",
+            "Result": "yes",
+            "End": true
+          },
+          "no": {
+            "Type": "Pass",
+            "Result": "no",
+            "End": true
+          }
+        }
+      }), 
+      {
+        "a": "2016-04-06T10:10:09Z"
+      },
+      "no"],
+      [new S({
+        "StartAt": "one",
+        "States": {
+          "one": {
+            "Type": "Pass",
+            "Result": "Hello World",
+            "ResultPath": "$.msg",
+            "End": true
+          },
+        }
+      }), 
+      { "name": "John" },
+      { "name": "John", msg: "Hello World" }],
+      [new S({
+        "StartAt": "one",
+        "States": {
+          "one": {
+            "Type": "Pass",
+            "Result": "Hello World",
+            "ResultPath": "$.msg",
+            "End": true
+          },
+        }
+      }), 
+      { "name": "John" },
+      { "name": "John", msg: "Hello World" }]
+    ])('statemachine %j with input %j matches output %j', async (s, Input, expected) => {
+      const res = await s.execute({
+        Id: 'one',
+        Input
+      })
+       expect(res).toEqual(expected)
     })
   })
 })

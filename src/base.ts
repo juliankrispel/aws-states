@@ -214,13 +214,13 @@ export interface ParallelState<T> extends FullBaseClass<T> {
 export interface MapState<T> extends FullBaseClass<T> {
   Type: "Map",
   ItemsPath?: string,
+  MaxConcurrency?: number,
+  Iterator: StateMachine<unknown>
 }
 
 export interface PassState<T> extends Comment, Step<T>, IO, ResultPath, Parameters {
   Type: "Pass",
-  Result?: {
-    [key: string]: JsonValue
-  },
+  Result?: JsonValue,
 }
 
 export interface WaitState<T> extends Comment, Step<T>, IO, Expirable {
@@ -253,22 +253,23 @@ export type State<T> =
   | RequireAtLeastOne<ParallelState<T>, "End" | "Next">
   | RequireAtLeastOne<TaskState<T>, "End" | "Next">
 
+export type Execution = {
+  Id: string
+  Input: JsonValue
+  StartTime: string
+}
 
-export type StepFunctionContext = {
-  Execution: {
-    Id: string
-    Input: JsonValue
-    StartTime: string
-  };
+export type StepFunctionContext<T> = {
+  Execution: Execution
   State: {
     EnteredTime: string
-    Name: string
+    Name: keyof T
     RetryCount: number
   };
   StateMachine: {
     Id: string
   };
   Task: {
-    Token: string
+    Token?: string
   };
 };

@@ -1,6 +1,13 @@
 import * as t from './base'
 import { assertEquals } from 'typescript-is'
 
+function uuidv4() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 const timestampRegex = /^(-?(?:[1-9][0-9]*)?[0-9]{4})-(1[0-2]|0[1-9])-(3[01]|0[1-9]|[12][0-9])T(2[0-3]|[01][0-9]):([0-5][0-9]):([0-5][0-9])(\\.[0-9]+)?(Z)?$/
 
 type Resources<T> = {
@@ -23,11 +30,15 @@ export default class States<T extends t.States<T>> {
   end: boolean = false
   at: keyof T
   resources?: Resources<T>
+  id: string
+  execution?: t.Execution
+  context?: t.StepFunctionContext<T>
 
   constructor(st: {
     StartAt: keyof T,
     States: T,
-  }) {
+  }, id: string = uuidv4()) {
+    this.id = id
     this.stateMachine = st
     this.at = st.StartAt
   }
@@ -43,9 +54,16 @@ export default class States<T extends t.States<T>> {
     this.resources = res
   }
 
-  async startExecution(_input: t.JsonValue) {
+
+  async execute({ Input, Id }: Omit<t.Execution, "StartTime">) {
     this.at = this.stateMachine.StartAt
-    let input = _input
+    let input = Input
+
+    this.execution = {
+      Input,
+      Id,
+      StartTime: (new Date()).toISOString()
+    }
 
     while(!this.end) {
       input = await this.step(input)
@@ -55,16 +73,48 @@ export default class States<T extends t.States<T>> {
   }
 
   isPath(path: string) {
-    return /^\$/.test(path)
+    return /^\$\$?[^$]?/.test(path)
   }
 
-  path(input: any, path: string) {
+  assign(input: any, pathString: string, val: any) {
+    if (!this.isPath(pathString)) {
+      throw new Error(`Invalid Path: ${pathString}`)
+    }
+
+    const path = pathString
+    .replace(/^\$\./, '')
+    .split('.')
+
+    return path.reduce(
+      (acc, key, index) => {
+        if (path.length - 1 === index) {
+          console.log(acc, key)
+          acc[key] = val
+          return acc
+        } else if (!acc[key]){
+          acc[key] = {}
+          return acc[key]
+        } else {
+          return acc[key]
+        }
+      },
+      input
+    )
+  }
+
+  path(_input: any, path: string) {
     if (!this.isPath(path)) {
       throw new Error(`Invalid Path: ${path}`)
     }
 
+    let input = _input
+
+    if (path.startsWith('$$')) {
+      input = this.context
+    }
+
     return path
-    .replace(/^\$\./, '')
+    .replace(/^\$+\./, '')
     .split('.')
     .reduce((acc, segment) => {
       if (segment.endsWith(']')) {
@@ -86,7 +136,7 @@ export default class States<T extends t.States<T>> {
           }
 
           return acc.slice(start, end)
-        } else if (!(val in acc)) {
+        } else if (!(typeof acc === 'object' && acc.hasOwnProperty(val)) || !(val in acc)) {
           throw new Error(`Invalid Path: ${path}`)
         }
         return acc[val]
@@ -186,13 +236,10 @@ export default class States<T extends t.States<T>> {
       input = this.path(input, state.InputPath)
     }
 
-    if ((state.Type === 'Task'
-      || state.Type === 'Map'
-      || state.Type === 'Parallel'
-      || state.Type === 'Pass')
-      && state.Parameters) {
-        input = this.parameters(state.Parameters, input)
+    if ('Parameters' in state && state.Parameters != null) {
+      input = this.parameters(state.Parameters, input)
     }
+
     return input
   }
 
@@ -286,19 +333,48 @@ export default class States<T extends t.States<T>> {
     }
   }
 
-  evaluateExpression(exp: t.LogicalExpression, input: t.JsonValue): boolean {
+  evaluateChoiceRule(exp: t.LogicalExpression, input: t.JsonValue): boolean {
     if ('And' in exp) {
-      return exp.And.reduce((res, val) => res && this.evaluateExpression(val, input), true as boolean)
+      return exp.And.reduce((res, val) => res && this.evaluateChoiceRule(val, input), true as boolean)
     } else if ('Or' in exp) {
-      return exp.Or.reduce((res, val) => res || this.evaluateExpression(val, input), false as boolean)
+      return exp.Or.reduce((res, val) => res || this.evaluateChoiceRule(val, input), false as boolean)
     } else if ('Not' in exp) {
-      return !this.evaluateExpression(exp.Not, input)
+      return !this.evaluateChoiceRule(exp.Not, input)
     } else {
       return this.evaluateLogicalOperator(exp, input)
     }
   }
 
-  async output(state: t.State<T>, input: t.JsonValue) {
+  output(state: t.State<T>, input: t.JsonValue, val: any) {
+    let res = val
+
+    if ('ResultPath' in state && state.ResultPath != null) {
+      res = this.assign(input, state.ResultPath, res)
+    }
+    return res
+  }
+
+  updateContext() {
+    if (this.execution == null) {
+      throw new Error('execution undefined')
+    }
+    if (this.at == null) {
+      throw new Error('state undefined')
+    }
+
+    this.context = {
+      Execution: this.execution,
+      State: {
+        EnteredTime: (new Date()).toISOString(),
+        Name: this.at,
+        RetryCount: 0
+      },
+      StateMachine: {
+        Id: this.id
+      },
+      Task: {
+      }
+    }
   }
 
   async step(_input: t.JsonValue) {
@@ -306,12 +382,17 @@ export default class States<T extends t.States<T>> {
     const state = states[this.at as string]
     const input = this.input(state, _input)
     let res: any = input
+    let next: keyof T | null = null
+    this.updateContext()
 
     if (state.Type === 'Task' && this.resources && this.resources[this.at]) {
       res = {
         ...await this.resources[this.at](input)
       }
     } else if (state.Type === 'Pass') {
+      if ('Result' in state) {
+        res = state.Result
+      }
     } else if (state.Type === 'Succeed') {
       return res
     } else if (state.Type === 'Fail') {
@@ -321,12 +402,26 @@ export default class States<T extends t.States<T>> {
     } else if (state.Type === 'Wait') {
       await wait(state.Seconds)
     } else if (state.Type === 'Choice') {
-      throw new Error('Choide')
+      const validChoices = state.Choices.map((choice) => ({
+        next: choice.Next,
+        result: this.evaluateChoiceRule(choice, input)
+      }))
+      .filter(choice => choice.result === true)
+      .map(choice => choice.next)
+
+      if (validChoices.length > 0) {
+        next = validChoices[0]
+      } else if (state.Default != null) {
+        next = state.Default
+      } else {
+        throw new Error('States.NoChoiceMatched')
+      }
     }
 
-    if (state.Next != null) {
-      this.at = state.Next
-      this.step(res)
+    res = this.output(state, input, res)
+
+    if (next != null) {
+      this.at = next
       return res
     } else {
       this.end = true
