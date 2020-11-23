@@ -9,6 +9,10 @@ const invoke = jest.spyOn(Lambda.prototype, 'invoke')
 const encoder = new TextEncoder()
 const payload = { hello: 'world' }
 
+class MyError extends Error {
+  name = 'MyError'
+}
+
 beforeEach(() => {
   jest.clearAllMocks()
   invoke.mockResolvedValue({
@@ -149,13 +153,19 @@ describe('States', () => {
 
   describe('runTask', () => {
     test.each`
-      MaxAttempts         | ErrorEquals              | throws    | error                | tries    | success
-      ${undefined}        | ${[ErrorCodes.All]}        | ${3}      | ${'Some Error'}      | ${2}     | ${false}
-      ${undefined}        | ${[ErrorCodes.All]}        | ${1}      | ${'Some Error'}      | ${2}     | ${true}
-      ${2}                | ${[ErrorCodes.All]}        | ${2}      | ${'Some Error'}      | ${3}     | ${true}
-      ${4}                | ${[ErrorCodes.All]}        | ${4}      | ${'Some Error'}      | ${5}     | ${true}
-      ${3}                | ${[ErrorCodes.All]}        | ${4}      | ${'Some Error'}      | ${4}     | ${false}
-    `(`When Retry is { MaxAttempts: $MaxAttempts, ErrorEquals: $ErrorEquals } and the task throws Error("$error") $throws times
+      MaxAttempts         | ErrorEquals                   | throws    | error                            | tries    | success
+      ${undefined}        | ${[ErrorCodes.All]}           | ${3}      | ${new Error('Some Error')}       | ${2}     | ${false}
+      ${undefined}        | ${[ErrorCodes.All]}           | ${1}      | ${new Error('Some Error')}       | ${2}     | ${true}
+      ${2}                | ${[ErrorCodes.All]}           | ${2}      | ${new Error('Some Error')}       | ${3}     | ${true}
+      ${4}                | ${[ErrorCodes.All]}           | ${4}      | ${new Error('Some Error')}       | ${5}     | ${true}
+      ${3}                | ${[ErrorCodes.All]}           | ${4}      | ${new Error('Some Error')}       | ${4}     | ${false}
+      ${4}                | ${['Something']}              | ${4}      | ${new Error('Some Error')}       | ${1}     | ${false}
+      ${2}                | ${[ErrorCodes.TaskFailed]}    | ${2}      | ${new Error('Some Error')}       | ${3}     | ${true}
+      ${2}                | ${['MyError']}                | ${2}      | ${new MyError('💥')}             | ${3}     | ${true}
+      ${2}                | ${[ErrorCodes.All]}           | ${2}      | ${new MyError('💥')}             | ${3}     | ${true}
+      ${2}                | ${[ErrorCodes.TaskFailed]}    | ${2}      | ${new MyError('💥')}             | ${3}     | ${true}
+      ${2}                | ${['Bla']}                    | ${2}      | ${new MyError('💥')}             | ${1}     | ${false}
+    `(`When Retry is { MaxAttempts: $MaxAttempts, ErrorEquals: $ErrorEquals } and the task throws $error $throws times
     the task gets retried $tries and succeeds: $success`, async ({
       MaxAttempts,
       ErrorEquals,
@@ -178,7 +188,7 @@ describe('States', () => {
       const input = { hello: 'world'}
 
       for (let i = 0; i < throws; i++) {
-        resolveTask.mockRejectedValueOnce(new Error(error))
+        resolveTask.mockRejectedValueOnce(error)
       }
       resolveTask.mockResolvedValueOnce(input)
 

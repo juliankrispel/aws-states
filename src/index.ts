@@ -419,10 +419,10 @@ export default class States<T extends t.States<T>> {
     return res
   }
 
-  matchErrorCode(err: Error, code: string) {
+  matchErrorCode(errName: string, code: string) {
     if (code === ErrorCodes.All) {
       return true
-    } else if (err.name === code) {
+    } else if (errName === code) {
       return true
     }
     return false
@@ -440,7 +440,7 @@ export default class States<T extends t.States<T>> {
             return resp
           } catch (err) {
             if (
-              retry.ErrorEquals.some(errorCode => this.matchErrorCode(err, errorCode))
+              retry.ErrorEquals.some(errorCode => errorCode === ErrorCodes.TaskFailed || this.matchErrorCode(err.name, errorCode))
               && (retries > 0)
             ) {
               retries--
