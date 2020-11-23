@@ -75,6 +75,7 @@ export interface Comment {
   Comment?: string,
 }
 
+
 // Exception handling
 export interface Catch<T> extends Next<T> {
   ErrorEquals: string[],

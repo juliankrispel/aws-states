@@ -1,4 +1,21 @@
-import S from '../'
+import S, { ErrorCodes } from '../'
+jest.mock('@aws-sdk/client-lambda-node')
+import { mocked } from 'ts-jest'
+import { Lambda as _Lambda } from '@aws-sdk/client-lambda-node'
+import { Retry, TaskState } from '../base'
+const Lambda = mocked(_Lambda)
+const invoke = jest.spyOn(Lambda.prototype, 'invoke')
+
+const encoder = new TextEncoder()
+const payload = { hello: 'world' }
+
+beforeEach(() => {
+  jest.clearAllMocks()
+  invoke.mockResolvedValue({
+    // @ts-ignore
+    Payload: encoder.encode(JSON.stringify(payload))
+  })
+})
 
 describe('States', () => {
   let s = new S({
@@ -6,7 +23,10 @@ describe('States', () => {
     States: {
       one: {
         Type: 'Task',
-        Resource: 'MyResource',
+        Resource: 'arn:aws:lambda:us-east-1:492107414874:function:test',
+        Retry: [{
+          ErrorEquals: [ErrorCodes.All],
+        }],
         End: true
       }
     }
@@ -14,16 +34,6 @@ describe('States', () => {
 
   it('instantiates a valid state machine', () => {
     expect(s.stateMachine).toMatchSnapshot()
-  })
-
-  describe('assign resources', () => {
-    s.assignResources({
-      one: async () => {
-        return {
-          what: 'is going on'
-        }
-      }
-    })
   })
 
   describe('path', () => {
@@ -137,6 +147,59 @@ describe('States', () => {
     })
   })
 
+  describe('runTask', () => {
+    test.each`
+      MaxAttempts         | ErrorEquals              | throws    | error                | tries    | success
+      ${undefined}        | ${[ErrorCodes.All]}        | ${3}      | ${'Some Error'}      | ${2}     | ${false}
+      ${undefined}        | ${[ErrorCodes.All]}        | ${1}      | ${'Some Error'}      | ${2}     | ${true}
+      ${2}                | ${[ErrorCodes.All]}        | ${2}      | ${'Some Error'}      | ${3}     | ${true}
+      ${4}                | ${[ErrorCodes.All]}        | ${4}      | ${'Some Error'}      | ${5}     | ${true}
+      ${3}                | ${[ErrorCodes.All]}        | ${4}      | ${'Some Error'}      | ${4}     | ${false}
+    `(`When Retry is { MaxAttempts: $MaxAttempts, ErrorEquals: $ErrorEquals } and the task throws Error("$error") $throws times
+    the task gets retried $tries and succeeds: $success`, async ({
+      MaxAttempts,
+      ErrorEquals,
+      throws,
+      error,
+      tries,
+      success
+    }) => {
+      const resolveTask = jest.fn()
+      s = s.clone({
+        resolveTask
+      })
+
+      const task = s.stateMachine.States.one as TaskState<any>
+      task.Retry = [{
+        MaxAttempts,
+        ErrorEquals
+      }]
+
+      const input = { hello: 'world'}
+
+      for (let i = 0; i < throws; i++) {
+        resolveTask.mockRejectedValueOnce(new Error(error))
+      }
+      resolveTask.mockResolvedValueOnce(input)
+
+
+      const run = async () => {
+        const res = await s.runTask(
+          s.stateMachine.States.one,
+          input
+        )
+        return res
+      }
+
+      if (success) {
+        await expect(run()).resolves.toEqual(input)
+      } else {
+        await expect(run()).rejects.toThrowError(error)
+      }
+
+      await expect(resolveTask).toHaveBeenCalledTimes(tries)
+    })
+  })
 
   describe('startExecution', () => {
     it('should work', async () => {

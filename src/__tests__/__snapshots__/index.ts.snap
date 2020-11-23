@@ -6,7 +6,14 @@ Object {
   "States": Object {
     "one": Object {
       "End": true,
-      "Resource": "MyResource",
+      "Resource": "arn:aws:lambda:us-east-1:492107414874:function:test",
+      "Retry": Array [
+        Object {
+          "ErrorEquals": Array [
+            "States.ALL",
+          ],
+        },
+      ],
       "Type": "Task",
     },
   },

@@ -1,11 +1,28 @@
 import * as t from './base'
 import { assertEquals } from 'typescript-is'
+import { parse } from '@aws-sdk/util-arn-parser'
+import { Lambda } from '@aws-sdk/client-lambda-node'
+
+const decoder = new TextDecoder("utf-8")
+const lambda = new Lambda({})
 
 function uuidv4() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
     var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
+}
+
+export enum ErrorCodes {
+  All = 'States.ALL',
+  Timeout = 'States.Timeout',
+  TaskFailed = 'States.TaskFailed',
+  Permissions = 'States.Permissions',
+  ResultPathMatchFailure = 'States.ResultPathMatchFailure',
+  ParameterPathFailure = 'States.ParameterPathFailure',
+  BranchFailed = 'States.BranchFailed',
+  NoChoiceMatched = 'States.NoChoiceMatched',
+  IntrinsicFailure = 'States.IntrinsicFailure',
 }
 
 const timestampRegex = /^(-?(?:[1-9][0-9]*)?[0-9]{4})-(1[0-2]|0[1-9])-(3[01]|0[1-9]|[12][0-9])T(2[0-3]|[01][0-9]):([0-5][0-9]):([0-5][0-9])(\\.[0-9]+)?(Z)?$/
@@ -25,35 +42,48 @@ const wait = (seconds: number = 1) => {
   })
 }
 
+type Config<T> = {
+  resolveTask?: (state: t.State<T>, _input: t.JsonValue) => Promise<t.JsonValue | void>
+  resolveContext?: (state: t.State<T>) => Promise<t.JsonValue | void>
+  id?: string
+}
+
 export default class States<T extends t.States<T>> {
   stateMachine: t.StateMachine<T>
   end: boolean = false
   at: keyof T
+  retryCount: number
   resources?: Resources<T>
-  id: string
   execution?: t.Execution
   context?: t.StepFunctionContext<T>
+  config: Config<T>
 
   constructor(st: {
     StartAt: keyof T,
     States: T,
-  }, id: string = uuidv4()) {
-    this.id = id
+  }, config?: Config<T>) {
+    this.retryCount = 0
+    this.config = {
+      id: uuidv4(),
+      ...config
+    }
     this.stateMachine = st
     this.at = st.StartAt
+  }
+
+  clone(config?: Config<T>) {
+    return new States({
+      StartAt: this.stateMachine.StartAt,
+      States: {...this.stateMachine.States} as T
+    }, {
+      ...this.config,
+      ...config
+    })
   }
 
   valueOf() {
     this.stateMachine
   }
-
-  assignResources(res: Resources<T>) {
-    const states = this.stateMachine.States
-    const stateKeys = Object.keys(states)
-    // stateKeys.map(key => states[key])
-    this.resources = res
-  }
-
 
   async execute({ Input, Id }: Omit<t.Execution, "StartTime">) {
     this.at = this.stateMachine.StartAt
@@ -88,7 +118,6 @@ export default class States<T extends t.States<T>> {
     return path.reduce(
       (acc, key, index) => {
         if (path.length - 1 === index) {
-          console.log(acc, key)
           acc[key] = val
           return acc
         } else if (!acc[key]){
@@ -370,9 +399,56 @@ export default class States<T extends t.States<T>> {
         RetryCount: 0
       },
       StateMachine: {
-        Id: this.id
+        Id: this.config.id || uuidv4()
       },
       Task: {
+      }
+    }
+  }
+
+  async executeTask(state: t.State<T>, input: t.JsonValue): Promise<t.JsonValue | void> {
+    if (!('Resource' in state)) {
+      throw new Error('cannot run this')
+    }
+
+    if (!this.config.resolveTask) {
+      throw new Error('resolveTask undefined')
+    }
+
+    const res = await this.config.resolveTask(state, input)
+    return res
+  }
+
+  matchErrorCode(err: Error, code: string) {
+    if (code === ErrorCodes.All) {
+      return true
+    } else if (err.name === code) {
+      return true
+    }
+    return false
+  }
+
+  async runTask(state: t.State<T>, _input: t.JsonValue): Promise<t.JsonValue | void> {
+    if ('Retry' in state
+    && Array.isArray(state.Retry)
+    && state.Retry.length > 0) {
+      for (const retry of state.Retry) {
+        let retries = retry.MaxAttempts ||= 1
+        while (retries >= 0) {
+          try {
+            const resp = await this.executeTask(state, _input)
+            return resp
+          } catch (err) {
+            if (
+              retry.ErrorEquals.some(errorCode => this.matchErrorCode(err, errorCode))
+              && (retries > 0)
+            ) {
+              retries--
+            } else {
+              throw err
+            }
+          }
+        }
       }
     }
   }
@@ -385,10 +461,8 @@ export default class States<T extends t.States<T>> {
     let next: keyof T | null = null
     this.updateContext()
 
-    if (state.Type === 'Task' && this.resources && this.resources[this.at]) {
-      res = {
-        ...await this.resources[this.at](input)
-      }
+    if (state.Type === 'Task') {
+      res = this.runTask(state, input)
     } else if (state.Type === 'Pass') {
       if ('Result' in state) {
         res = state.Result
