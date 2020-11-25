@@ -4,10 +4,14 @@ import { mocked } from 'ts-jest'
 import { Lambda as _Lambda } from '@aws-sdk/client-lambda-node'
 import { Retry, TaskState } from '../base'
 const Lambda = mocked(_Lambda)
-const invoke = jest.spyOn(Lambda.prototype, 'invoke')
 
 const encoder = new TextEncoder()
 const payload = { hello: 'world' }
+const invoke = jest.spyOn(Lambda.prototype, 'invoke')
+invoke.mockResolvedValue({
+  // @ts-ignore
+  Payload: encoder.encode(JSON.stringify(payload))
+})
 
 class MyError extends Error {
   name = 'MyError'
@@ -15,10 +19,6 @@ class MyError extends Error {
 
 beforeEach(() => {
   jest.clearAllMocks()
-  invoke.mockResolvedValue({
-    // @ts-ignore
-    Payload: encoder.encode(JSON.stringify(payload))
-  })
 })
 
 describe('States', () => {
@@ -152,62 +152,124 @@ describe('States', () => {
   })
 
   describe('runTask', () => {
-    test.each`
-      MaxAttempts         | ErrorEquals                   | throws    | error                            | tries    | success
-      ${undefined}        | ${[ErrorCodes.All]}           | ${3}      | ${new Error('Some Error')}       | ${2}     | ${false}
-      ${undefined}        | ${[ErrorCodes.All]}           | ${1}      | ${new Error('Some Error')}       | ${2}     | ${true}
-      ${2}                | ${[ErrorCodes.All]}           | ${2}      | ${new Error('Some Error')}       | ${3}     | ${true}
-      ${4}                | ${[ErrorCodes.All]}           | ${4}      | ${new Error('Some Error')}       | ${5}     | ${true}
-      ${3}                | ${[ErrorCodes.All]}           | ${4}      | ${new Error('Some Error')}       | ${4}     | ${false}
-      ${4}                | ${['Something']}              | ${4}      | ${new Error('Some Error')}       | ${1}     | ${false}
-      ${2}                | ${[ErrorCodes.TaskFailed]}    | ${2}      | ${new Error('Some Error')}       | ${3}     | ${true}
-      ${2}                | ${['MyError']}                | ${2}      | ${new MyError('💥')}             | ${3}     | ${true}
-      ${2}                | ${[ErrorCodes.All]}           | ${2}      | ${new MyError('💥')}             | ${3}     | ${true}
-      ${2}                | ${[ErrorCodes.TaskFailed]}    | ${2}      | ${new MyError('💥')}             | ${3}     | ${true}
-      ${2}                | ${['Bla']}                    | ${2}      | ${new MyError('💥')}             | ${1}     | ${false}
-    `(`When Retry is { MaxAttempts: $MaxAttempts, ErrorEquals: $ErrorEquals } and the task throws $error $throws times
-    the task gets retried $tries and succeeds: $success`, async ({
-      MaxAttempts,
-      ErrorEquals,
-      throws,
-      error,
-      tries,
-      success
-    }) => {
-      const resolveTask = jest.fn()
-      s = s.clone({
-        resolveTask
+    describe.skip('when Catch is defined', () => {
+      test.each`
+        ErrorEquals            | ResultPath       | error                        | success
+        ${['MyError']}         | ${undefined}     | ${undefined}                 | ${true}
+        ${[ErrorCodes.All]}    | ${undefined}     | ${new Error('Some Error')}   | ${true}
+        ${['MyError']}         | ${'$.err'}       | ${new MyError('💥')}         | ${true}
+        ${['MyError']}         | ${undefined}     | ${new Error('Some Error')}   | ${false}
+      `(`as $Catch and the task throws with $error the task gets caught and succeeds: $success`, async ({
+        ErrorEquals,
+        error,
+        success
+      }) => {
+
+        const resolveTask = jest.fn()
+        const sm = new S({
+          StartAt: 'one',
+          States: {
+            one: {
+              Type: 'Task',
+              Resource: 'someresource',
+              Catch: [{
+                ErrorEquals,
+                ResultPath: "$",
+                Next: 'two'
+              }],
+              End: true
+            },
+            two: {
+              Type: 'Pass',
+              End: true
+            }
+          }
+        }, { resolveTask })
+
+        const task = sm.stateMachine.States.one as TaskState<any>
+
+        const input = { hello: 'world'}
+
+        if (error != undefined) {
+          resolveTask.mockRejectedValueOnce(error)
+        }
+        resolveTask.mockResolvedValue(input)
+
+        const run = async () => {
+          const res = await sm.runTask(
+            sm.stateMachine.States.one,
+            input
+          )
+          console.log({ res })
+          return res
+        }
+
+        if (success) {
+          await expect(run()).resolves.toEqual(error || input)
+        } else {
+          await expect(run()).rejects.toThrowError(error)
+        }
       })
+    })
 
-      const task = s.stateMachine.States.one as TaskState<any>
-      task.Retry = [{
+    describe('when Retry is defined', () => {
+      test.each`
+        MaxAttempts         | ErrorEquals                   | throws    | error                            | tries    | success
+        ${undefined}        | ${[ErrorCodes.All]}           | ${3}      | ${new Error('Some Error')}       | ${2}     | ${false}
+        ${undefined}        | ${[ErrorCodes.All]}           | ${1}      | ${new Error('Some Error')}       | ${2}     | ${true}
+        ${2}                | ${[ErrorCodes.All]}           | ${2}      | ${new Error('Some Error')}       | ${3}     | ${true}
+        ${4}                | ${[ErrorCodes.All]}           | ${4}      | ${new Error('Some Error')}       | ${5}     | ${true}
+        ${3}                | ${[ErrorCodes.All]}           | ${4}      | ${new Error('Some Error')}       | ${4}     | ${false}
+        ${4}                | ${['Something']}              | ${4}      | ${new Error('Some Error')}       | ${1}     | ${false}
+        ${2}                | ${[ErrorCodes.TaskFailed]}    | ${2}      | ${new Error('Some Error')}       | ${3}     | ${true}
+        ${2}                | ${['MyError']}                | ${2}      | ${new MyError('💥')}             | ${3}     | ${true}
+        ${2}                | ${[ErrorCodes.All]}           | ${2}      | ${new MyError('💥')}             | ${3}     | ${true}
+        ${2}                | ${[ErrorCodes.TaskFailed]}    | ${2}      | ${new MyError('💥')}             | ${3}     | ${true}
+        ${2}                | ${['Bla']}                    | ${2}      | ${new MyError('💥')}             | ${1}     | ${false}
+      `(`with { MaxAttempts: $MaxAttempts, ErrorEquals: $ErrorEquals } and the task throws $error $throws times
+      the task gets retried $tries and succeeds: $success`, async ({
         MaxAttempts,
-        ErrorEquals
-      }]
+        ErrorEquals,
+        throws,
+        error,
+        tries,
+        success
+      }) => {
+        const resolveTask = jest.fn()
+        s = s.clone({
+          resolveTask
+        })
 
-      const input = { hello: 'world'}
+        const task = s.stateMachine.States.one as TaskState<any>
+        task.Retry = [{
+          MaxAttempts,
+          ErrorEquals
+        }]
 
-      for (let i = 0; i < throws; i++) {
-        resolveTask.mockRejectedValueOnce(error)
-      }
-      resolveTask.mockResolvedValueOnce(input)
+        const input = { hello: 'world'}
+
+        for (let i = 0; i < throws; i++) {
+          resolveTask.mockRejectedValueOnce(error)
+        }
+        resolveTask.mockResolvedValueOnce(input)
 
 
-      const run = async () => {
-        const res = await s.runTask(
-          s.stateMachine.States.one,
-          input
-        )
-        return res
-      }
+        const run = async () => {
+          const res = await s.runTask(
+            s.stateMachine.States.one,
+            input
+          )
+          return res
+        }
 
-      if (success) {
-        await expect(run()).resolves.toEqual(input)
-      } else {
-        await expect(run()).rejects.toThrowError(error)
-      }
+        if (success) {
+          await expect(run()).resolves.toEqual(input)
+        } else {
+          await expect(run()).rejects.toThrowError(error)
+        }
 
-      await expect(resolveTask).toHaveBeenCalledTimes(tries)
+        await expect(resolveTask).toHaveBeenCalledTimes(tries)
+      })
     })
   })
 
@@ -326,7 +388,8 @@ describe('States', () => {
         }
       }), 
       { "name": "John" },
-      { "name": "John", msg: "Hello World" }]
+      { "name": "John", msg: "Hello World" }],
+
     ])('statemachine %j with input %j matches output %j', async (s, Input, expected) => {
       const res = await s.execute({
         Id: 'one',

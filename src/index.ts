@@ -428,7 +428,11 @@ export default class States<T extends t.States<T>> {
     return false
   }
 
-  async runTask(state: t.State<T>, _input: t.JsonValue): Promise<t.JsonValue | void> {
+  taskErrorEquals(err: Error, ErrorEquals: string[]) {
+    return ErrorEquals.some(errorCode => errorCode === ErrorCodes.TaskFailed || this.matchErrorCode(err.name, errorCode))
+  }
+
+  async retry(state: t.State<T> , input: t.JsonValue) {
     if ('Retry' in state
     && Array.isArray(state.Retry)
     && state.Retry.length > 0) {
@@ -436,7 +440,7 @@ export default class States<T extends t.States<T>> {
         let retries = retry.MaxAttempts ||= 1
         while (retries >= 0) {
           try {
-            const resp = await this.executeTask(state, _input)
+            const resp = await this.executeTask(state, input)
             return resp
           } catch (err) {
             if (
@@ -450,6 +454,28 @@ export default class States<T extends t.States<T>> {
           }
         }
       }
+    } else {
+      const resp = await this.executeTask(state, input)
+      return resp
+    }
+  }
+
+  async runTask(state: t.State<T>, input: t.JsonValue): Promise<t.JsonValue | void> {
+    if ('Catch' in state && Array.isArray(state.Catch) && state.Catch.length > 0) {
+      try {
+        const resp = await this.retry(state, input)
+        return resp
+      } catch (err) {
+        const catcher = state.Catch.find(cat => this.taskErrorEquals(err, cat.ErrorEquals))
+        if (catcher != null) {
+          return err
+        } else {
+          throw err
+        }
+      }
+    } else {
+      const resp = await this.retry(state, input)
+      return resp
     }
   }
 

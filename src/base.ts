@@ -7,10 +7,6 @@ type RequireAtLeastOne<T, Keys extends keyof T = keyof T> =
             & Partial<Record<Exclude<Keys, K>, undefined>>
     }[Keys]
 
-type Impossible<K extends keyof any> = {
-  [P in K]: never;
-};
-
 // Base interfaces
 export interface IO {
   InputPath?: string
