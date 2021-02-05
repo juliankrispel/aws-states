@@ -151,6 +151,9 @@ describe('States', () => {
     })
   })
 
+  describe('Map State', () => {
+  })
+
   describe('runTask', () => {
     describe.skip('when Catch is defined', () => {
       test.each`

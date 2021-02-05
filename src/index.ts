@@ -444,7 +444,7 @@ export default class States<T extends t.States<T>> {
             return resp
           } catch (err) {
             if (
-              retry.ErrorEquals.some(errorCode => errorCode === ErrorCodes.TaskFailed || this.matchErrorCode(err.name, errorCode))
+              this.taskErrorEquals(err, retry.ErrorEquals)
               && (retries > 0)
             ) {
               retries--
@@ -476,6 +476,13 @@ export default class States<T extends t.States<T>> {
     } else {
       const resp = await this.retry(state, input)
       return resp
+    }
+  }
+
+  async runParallel(state: t.ParallelState<T>, input: t.JsonValue): Promise<t.JsonValue | void> {
+    for (const branch of state.Branches) {
+      const state = new States(branch)
+      await state.execute({ Input: input, Id: uuidv4()})
     }
   }
 
